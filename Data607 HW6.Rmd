@@ -1,0 +1,85 @@
+---
+title: "Data 607 Homework 6 by Jeff Nieman"
+date: "March 6, 2016"
+output: html_document
+---
+
+The process of creating tidy began with uploading the .csv file I created onto github and loading the various packages required.  I added na.strings="" to place NA in the fields that would have been blank.
+
+```{r}
+flightdata <- read.csv('https://raw.githubusercontent.com/jeffnieman11/Data607HW6/master/flight_delay.csv',na.strings="")
+flightdata
+require(tidyr)
+require(zoo)
+require(dplyr)
+require(ggplot2)
+```
+
+Using the gather function I created a column for the key "city" and another for the value "n".  I then renamed the column headers to better reflect what the data show.
+
+```{r}
+flightdata1 <- gather(flightdata, "city", "n", 3:7)
+colnames(flightdata1) <- c("Airline", "Timeliness", "City", "Count")
+flightdata1
+```
+
+Using the na.locf function from the zoo package to fill the NA fields with the value above it.
+
+```{r}
+
+flightdata2 <- na.locf(flightdata1)
+flightdata2
+
+```
+
+Using the spread function I separated out the timeliness column into new columns separating the ontime and delayed values.  I then renamed the columns and made sure the type for the delayed and ontime columns of data was numeric.
+
+```{r}
+flightdata3 <- spread(flightdata2, Timeliness, Count)
+colnames(flightdata3) <- c("Airline", "City", "Delayed", "Ontime")
+flightdata3$Delayed <- as.numeric(as.character(flightdata3$Delayed))
+flightdata3$Ontime <- as.numeric(as.character(flightdata3$Ontime))
+flightdata3
+```
+
+Using the mutate function I created a new column called "Rate".  This is the percentage of delayed flights for each airline by each run.
+
+```{r}
+flightdata4 <- mutate(flightdata3, Rate = Delayed/(Delayed + Ontime))
+flightdata4 <- arrange(flightdata4, desc(Rate))
+flightdata4
+```
+
+Using ggplot2 I created a bar chart that shows the delayed rate for each city by airline.  It shows clearly that Amwest was more often delayed than Alaska in every city.
+
+```{r}
+ggplot(flightdata4,aes(x=City, y=Rate, fill=factor(Airline))) +
+  geom_bar(stat="identity",position="dodge") +
+  scale_fill_discrete(name="Airline", breaks =c("ALASKA", "AMWEST"), labels=c("Alaska", "Amwest")) +
+  xlab("City") +
+  ylab("Delayed Rate")
+```
+
+Using the group_by and summarise functions I created a summary for all cities by airline.  Then I created the delayed rate for each airline using the mutate function.
+
+```{r}
+flightdata5 <- flightdata4 %>%
+  group_by(Airline)  %>%
+  summarise(Delayed = sum(Delayed), Ontime = sum(Ontime))
+flightdata5
+
+flightdata6 <- mutate(flightdata5, Rate = Delayed/(Delayed + Ontime))
+flightdata6 
+```
+
+Finally once again using ggplot2 I created a bar chart showing the delay rate for all cities for each of the two airlines.  Again this clearly shows that Amwest overall was delayed more often than Alaska.
+
+```{r}
+ggplot(flightdata6,aes(x=Airline, y=Rate)) +
+  geom_bar(stat="identity",position="dodge") +
+  xlab("Airline") +
+  ylab("Delayed Rate")
+```
+
+In conclusion, in every city and overall Amwest has a higher percentage of delayed flights than Alaska.
+
